@@ -1,6 +1,6 @@
 import color_tracker
 
-cam = color_tracker.WebCamera(video_src=0)
+cam = color_tracker.WebCamera(video_src=1)
 cam.start_camera()
 
 detector = color_tracker.HSVColorRangeDetector(camera=cam)

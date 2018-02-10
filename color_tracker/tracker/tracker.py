@@ -22,7 +22,7 @@ class ColorTracker(object):
         :param debug: When it's true than we can see the visualization of the captured points etc...
         """
 
-        super().__init__()
+        super(ColorTracker, self).__init__()
         self._camera = camera
         self._tracker_points = None
         self._filtered_points = None
@@ -32,11 +32,11 @@ class ColorTracker(object):
         self._tracking_callback = None
         self._last_detected_object_contour = None
         self._last_detected_object_center = None
+        self._last_filtered_point = None
         self._object_bounding_box = None
         self._is_running = False
         self._frame = None
         self._debug_frame = None
-        self._tracker = cv2.TrackerKCF_create()
 
         self._frame_preprocessor = None
 
@@ -103,10 +103,10 @@ class ColorTracker(object):
             self._last_detected_object_center = helpers.get_contour_center(self._last_detected_object_contour)
             self._object_bounding_box = helpers.get_bounding_box_for_contour(self._last_detected_object_contour)
             self._add_new_tracker_point(min_point_distance, max_point_distance)
-            pt = self.kalman.correct(np.array([[np.float32(self._last_detected_object_center[0])],[np.float32(self._last_detected_object_center[1])]]))
-            print ("Object center: {0}, filtered: {1}, {2}".format(self._last_detected_object_center, int(pt[0]), int(pt[1])))
+            self._last_filtered_point = self.kalman.correct(np.array([[np.float32(self._last_detected_object_center[0])],[np.float32(self._last_detected_object_center[1])]]))
+            # print ("Object center: {0}, filtered: {1}, {2}".format(self._last_detected_object_center, int(pt[0]), int(pt[1])))
             self.kalman.predict()
-            self._filtered_points.append((int(pt[0]), int(pt[1])))
+            self._filtered_points.append((int(self._last_filtered_point[0]), int(self._last_filtered_point[1])))
         else:
             self._last_detected_object_center = None
 
@@ -247,6 +247,9 @@ class ColorTracker(object):
 
     def get_last_object_center(self):
         return self._last_detected_object_center
+
+    def get_smooth_center(self):
+        return self._last_filtered_point
 
     def get_object_bounding_box(self):
         return self._object_bounding_box
