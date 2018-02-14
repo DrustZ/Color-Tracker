@@ -46,6 +46,7 @@ if __name__ == "__main__":
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     myip = s.getsockname()[0]
+    print (myip)
     s.close()
     Server = ThreadedServer(myip, 1234)
     Server.start()
@@ -59,9 +60,9 @@ if __name__ == "__main__":
 
     tracker.set_tracking_callback(tracking_callback=tracking_callback)
 
-    tracker.track(hsv_lower_value=(0, 155, 162),
+    tracker.track(hsv_lower_value=(160, 155, 133),
                   hsv_upper_value=(255, 255, 255),
-                  min_contour_area=50,
+                  min_contour_area=30,
                   kernel=kernel,
                   input_image_type="bgr")
 
