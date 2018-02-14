@@ -34,7 +34,7 @@ class ThreadedServer(object):
         #         print (e)
         #         self.client.close()
         #         return False
-
+    
 # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # s.connect(("8.8.8.8", 80))
 # myip = s.getsockname()[0]

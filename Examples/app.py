@@ -1,4 +1,5 @@
 import cv2
+import time
 import socket
 import color_tracker
 from socket_server import ThreadedServer
@@ -8,17 +9,21 @@ last_finger_center = None
 last_joint_center = None
 finger_disappeared = 0
 trigger = False
+last_time = 0
 
 #50 * 100
 def tracking_callback():
-    global last_finger_center, last_joint_center, finger_disappeared, trigger
+    global last_finger_center, last_joint_center, finger_disappeared, trigger, last_time
+    t = time.time()
+    if (t - last_time)*1000 < 30:
+        return None
+    last_time = t
     # timer = cv2.getTickCount()
     # frame = tracker.get_frame()
     debug_frame = tracker.get_debug_image()
     # fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
     finger_center = tracker.get_last_object_center()[0]
     joint_center = tracker.get_last_object_center()[1]
-
     finger_center_filtered = tracker.get_smooth_center()[0]
     joint_center_filtered  = tracker.get_smooth_center()[1]
 
@@ -63,6 +68,7 @@ def tracking_callback():
             print (e)
             Server.client.close()
             Server.client = None
+            Server.start()
 
     trigger = False
     last_finger_center = finger_center_filtered
