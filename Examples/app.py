@@ -7,21 +7,22 @@ Server = None
 last_center = None
 
 #50 * 100
-
 def tracking_callback():
     global last_center
-    timer = cv2.getTickCount()
-    frame = tracker.get_frame()
+    # timer = cv2.getTickCount()
+    # frame = tracker.get_frame()
     debug_frame = tracker.get_debug_image()
-    fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
+    # fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
     # object_center = tracker.get_last_object_center()
-    object_center = tracker.get_smooth_center()
+    object_center = tracker.get_smooth_center()[0]
 
-    cv2.imshow("original frame", frame)
+    # cv2.imshow("original frame", frame)
     cv2.imshow("debug frame", debug_frame)
+
     key = cv2.waitKey(1)
     if key == 27:
         tracker.stop_tracking()
+
     # print("Object center: {0}".format(object_center))
     moveY, moveX = 0, 0
     if last_center is None:
@@ -56,14 +57,14 @@ if __name__ == "__main__":
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 
-    tracker = color_tracker.ColorTracker(camera=webcam, max_nb_of_points=20, debug=True)
+    tracker = color_tracker.ColorTracker(camera=webcam, max_nb_of_points=10, debug=True)
 
     tracker.set_tracking_callback(tracking_callback=tracking_callback)
 
-    tracker.track(hsv_lower_value=(160, 155, 133),
-                  hsv_upper_value=(255, 255, 255),
-                  min_contour_area=30,
-                  kernel=kernel,
+    tracker.track(hsv_lower_values=[(160, 155, 133), (115, 166, 56)],
+                  hsv_upper_values=[(255, 255, 255), (150, 255, 131)],
+                  min_contour_areas=[30, 10],
+                  kernels=[kernel, kernel],
                   input_image_type="bgr")
 
     webcam.release_camera()
