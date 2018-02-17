@@ -2,6 +2,7 @@ import cv2
 import time
 import socket
 import color_tracker
+import numpy as np
 from socket_server import ThreadedServer
 
 Server = None
@@ -11,11 +12,20 @@ finger_disappeared = 0
 trigger = False
 last_time = 0
 
-#50 * 100
+# 6 cm wid * 11 cm len phone
+# 1080 / 6 = 180 pixel/cm  1920/11 = 175 pixel/cm
+fix_locate_points = [[6.0*(1.0-5.8/np.sqrt(40)) * 180, (11.0-2.0*5.8/np.sqrt(40))*175],\
+                     [6.0*(1.0-7/np.sqrt(66.25))*180,(11.0-5.5*7/np.sqrt(66.25))*175],\
+                     [6.0*(1.0-9.5/np.sqrt(157))*180,(11.0-11.0*9.5/np.sqrt(157))*175],\
+                     [(6-4*9/np.sqrt(137))*180,(11-11*9/np.sqrt(137))*175],\
+                     [(6-2*9/np.sqrt(125))*180,(11-11*9/np.sqrt(125))*175]]
+
+angles = [np.arctan(2.0/6), np.arctan(5.5/6), np.arctan(11/6.0), np.arctan(11/4.0), np.arctan(11/2.0)]
+
 def tracking_callback():
     global last_finger_center, last_joint_center, finger_disappeared, trigger, last_time
     t = time.time()
-    if (t - last_time)*1000 < 30:
+    if (t - last_time)*1000 < 20:
         return None
     last_time = t
     # timer = cv2.getTickCount()
@@ -57,11 +67,23 @@ def tracking_callback():
         finger_disappeared = 0
         trigger = False
 
+    moveX = -moveX
     if Server.client:
         try:
             command = "move"
             if trigger:
                 command = "trig"
+                move_rad = np.arctan(np.fabs(moveY/moveX))
+                moveX = fix_locate_points[2][0]
+                moveY = fix_locate_points[2][1]
+                if move_rad <= angles[0]:
+                    moveX, moveY = fix_locate_points[0][0], fix_locate_points[0][1]
+                elif move_rad <= angles[1]:
+                    moveX, moveY = fix_locate_points[1][0], fix_locate_points[1][1]
+                elif move_rad >= angles[3]:
+                    moveX, moveY = fix_locate_points[3][0], fix_locate_points[3][1]
+                elif move_rad >= angles[4]:
+                    moveX, moveY = fix_locate_points[4][0], fix_locate_points[4][1]
 
             Server.client.send("{0},{1},{2}\n".format(command, moveX, moveY).encode())
         except Exception as e:
@@ -83,7 +105,7 @@ if __name__ == "__main__":
     Server = ThreadedServer(myip, 1234)
     Server.start()
 
-    webcam = color_tracker.WebCamera(video_src=1)
+    webcam = color_tracker.WebCamera(video_src=0)
     webcam.start_camera()
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -92,9 +114,9 @@ if __name__ == "__main__":
 
     tracker.set_tracking_callback(tracking_callback=tracking_callback)
 
-    tracker.track(hsv_lower_values=[(160, 155, 133), (86, 52, 96)],
-                  hsv_upper_values=[(255, 255, 255), (145, 255, 168)],
-                  min_contour_areas=[30, 10],
+    tracker.track(hsv_lower_values=[(0, 213, 122), (96, 164, 100)],
+                  hsv_upper_values=[(12, 255, 255), (255, 255, 255)],
+                  min_contour_areas=[10, 10],
                   kernels=[kernel, kernel],
                   input_image_type="bgr")
 
