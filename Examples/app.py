@@ -11,19 +11,46 @@ last_joint_center = None
 finger_disappeared = 0
 trigger = False
 last_time = 0
+angle = 0
+cnt = 0 
 
-# 6 cm wid * 11 cm len phone
-# 1080 / 6 = 180 pixel/cm  1920/11 = 175 pixel/cm
-fix_locate_points = [[6.0*(1.0-5.8/np.sqrt(40)) * 180, (11.0-2.0*5.8/np.sqrt(40))*175],\
-                     [6.0*(1.0-7/np.sqrt(66.25))*180,(11.0-5.5*7/np.sqrt(66.25))*175],\
-                     [6.0*(1.0-9.5/np.sqrt(157))*180,(11.0-11.0*9.5/np.sqrt(157))*175],\
-                     [(6-4*9/np.sqrt(137))*180,(11-11*9/np.sqrt(137))*175],\
-                     [(6-2*9/np.sqrt(125))*180,(11-11*9/np.sqrt(125))*175]]
+throw_mode = 0
 
-angles = [np.arctan(2.0/6), np.arctan(5.5/6), np.arctan(11/6.0), np.arctan(11/4.0), np.arctan(11/2.0)]
+# w cm wid * h cm len phone
+# 1080 / w =  pixel/cm  1920/h =  pixel/cm
+w,h = 7.5, 12.5
+pcw, pch = 1080/w, 1920/h
+line1, line2, line3, line4 = np.sqrt(w**2+4), np.sqrt(w**2+h**2/4), np.sqrt(w**2+h**2), np.sqrt(1/4*w**2+h**2)
+flen1, flen2, flen3, flen4 = 5.5, 6, 6.5, 7
+pos1, pos2, pos3, pos4 = (line1-flen1)/2+flen1, (line2-flen2)/2+flen2, (line3-flen3)/2+flen3, (line4-flen4)/2+flen4
+fix_locate_points = [[20, (h-2.0*pos1/line1)*pch],\
+                     [20, (h-h/2*pos2/line2)*pch],\
+                     [20, 180],\
+                     [w*pcw-20,180]]
+
+print (fix_locate_points)
+
+angles = [np.arctan(2.0/w), np.arctan(h/2/w), np.arctan(h/w), np.arctan(h*2/w)]
+print (angles)
+
+def choose_angles(mode, move_rad):
+    moveX = fix_locate_points[2][0]
+    moveY = fix_locate_points[2][1]
+    if mode == 0:
+        if move_rad <= angles[0]:
+            moveX, moveY = fix_locate_points[0][0], fix_locate_points[0][1]
+            print ("pos 1")
+        elif move_rad <= angles[1]:
+            moveX, moveY = fix_locate_points[1][0], fix_locate_points[1][1]
+            print ("pos 2")
+        elif move_rad >= angles[3]:
+            moveX, moveY = fix_locate_points[3][0], fix_locate_points[3][1]
+            print ("pos 3")
+    return moveX, moveY
+
 
 def tracking_callback():
-    global last_finger_center, last_joint_center, finger_disappeared, trigger, last_time
+    global last_finger_center, last_joint_center, finger_disappeared, trigger, last_time, last_movey, last_movex, angle, cnt
     t = time.time()
     if (t - last_time)*1000 < 20:
         return None
@@ -55,9 +82,9 @@ def tracking_callback():
         if finger_disappeared > 3 and joint_center is not None:
             finger_disappeared = 0
             trigger = True
-            print ("trigger.")
             moveX = (finger_center[0] - joint_center[0]) * 10
             moveY = (finger_center[1] - joint_center[1]) * 10
+            # print (np.sqrt(moveX**2+moveY**2))
         else:
             moveX = (finger_center_filtered[0] - last_finger_center[0]).sum() * 10
             moveY = (finger_center_filtered[1] - last_finger_center[1]).sum() * 10
@@ -67,24 +94,27 @@ def tracking_callback():
         finger_disappeared = 0
         trigger = False
 
-    moveX = -moveX
+    # assemble command
+    # moveX = -moveX
+    moveY = -moveY
+    command = "move"
+    # cnt += 1
+    if trigger and throw_mode == 0:
+        command = "trig"
+        print ("trigger.")
+        if moveX == 0:
+            moveX = 1e-10
+        angle = np.arctan(np.fabs(moveY/moveX))
+        moveX, moveY = choose_angles(throw_mode, angle)
+        trigger = False
+    # if trigger and throw_mode == 1:
+    #     command = "trig"
+    #     moveX, moveY = choose_angles(throw_mode, angle)
+    #     trigger = False
+
+
     if Server.client:
         try:
-            command = "move"
-            if trigger:
-                command = "trig"
-                move_rad = np.arctan(np.fabs(moveY/moveX))
-                moveX = fix_locate_points[2][0]
-                moveY = fix_locate_points[2][1]
-                if move_rad <= angles[0]:
-                    moveX, moveY = fix_locate_points[0][0], fix_locate_points[0][1]
-                elif move_rad <= angles[1]:
-                    moveX, moveY = fix_locate_points[1][0], fix_locate_points[1][1]
-                elif move_rad >= angles[3]:
-                    moveX, moveY = fix_locate_points[3][0], fix_locate_points[3][1]
-                elif move_rad >= angles[4]:
-                    moveX, moveY = fix_locate_points[4][0], fix_locate_points[4][1]
-
             Server.client.send("{0},{1},{2}\n".format(command, moveX, moveY).encode())
         except Exception as e:
             print (e)
@@ -92,7 +122,6 @@ def tracking_callback():
             Server.client = None
             Server.start()
 
-    trigger = False
     last_finger_center = finger_center_filtered
     last_joint_center = joint_center_filtered
 
@@ -105,19 +134,20 @@ if __name__ == "__main__":
     Server = ThreadedServer(myip, 1234)
     Server.start()
 
-    webcam = color_tracker.WebCamera(video_src=0)
+    webcam = color_tracker.WebCamera(video_src=2)
     webcam.start_camera()
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
+    kernel2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 
     tracker = color_tracker.ColorTracker(camera=webcam, max_nb_of_points=10, debug=True)
 
     tracker.set_tracking_callback(tracking_callback=tracking_callback)
 
-    tracker.track(hsv_lower_values=[(0, 213, 122), (96, 164, 100)],
-                  hsv_upper_values=[(12, 255, 255), (255, 255, 255)],
-                  min_contour_areas=[10, 10],
-                  kernels=[kernel, kernel],
+    tracker.track(hsv_lower_values=[(37, 75, 44), (0, 164, 192)],
+                  hsv_upper_values=[(87, 255, 253), (255, 255, 255)],
+                  min_contour_areas=[150, 50],
+                  kernels=[kernel1, kernel2],
                   input_image_type="bgr")
 
     webcam.release_camera()
