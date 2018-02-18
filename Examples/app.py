@@ -3,9 +3,11 @@ import time
 import socket
 import color_tracker
 import numpy as np
-from socket_server import ThreadedServer
 
-Server = None
+cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
 last_finger_center = None
 last_joint_center = None
 finger_disappeared = 0
@@ -112,29 +114,13 @@ def tracking_callback():
     #     moveX, moveY = choose_angles(throw_mode, angle)
     #     trigger = False
 
-
-    if Server.client:
-        try:
-            Server.client.send("{0},{1},{2}\n".format(command, moveX, moveY).encode())
-        except Exception as e:
-            print (e)
-            Server.client.close()
-            Server.client = None
-            Server.start()
+    cs.sendto("{0},{1},{2}".format(command, moveX, moveY).encode(), ('192.168.1.27', 12345))
 
     last_finger_center = finger_center_filtered
     last_joint_center = joint_center_filtered
 
 if __name__ == "__main__":
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    myip = s.getsockname()[0]
-    print (myip)
-    s.close()
-    Server = ThreadedServer(myip, 1234)
-    Server.start()
-
-    webcam = color_tracker.WebCamera(video_src=2)
+    webcam = color_tracker.WebCamera(video_src=1)
     webcam.start_camera()
 
     kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
