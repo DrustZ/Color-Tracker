@@ -3,10 +3,25 @@ import time
 import socket
 import color_tracker
 import numpy as np
+from bluetooth import *
 
-cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+#cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+uuid = "fa87c0d0-afac-11de-8a39-0800200c9a66"
+addr = "5C:70:A3:D7:FE:46"
+service_matches = find_service( uuid = uuid, address = addr )
+
+first_match = service_matches[0]
+port = first_match["port"]
+name = first_match["name"]
+host = first_match["host"]
+
+sock=BluetoothSocket( RFCOMM )
+sock.connect((host, port))
+
+print("connecting to \"%s\" on %s" % (name, host))
 
 last_finger_center = None
 last_joint_center = None
@@ -54,6 +69,7 @@ def choose_angles(mode, move_rad):
 def tracking_callback():
     global last_finger_center, last_joint_center, finger_disappeared, trigger, last_time, last_movey, last_movex, angle, cnt
     t = time.time()
+    print(t-last_time)
     if (t - last_time)*1000 < 20:
         return None
     last_time = t
@@ -114,13 +130,14 @@ def tracking_callback():
     #     moveX, moveY = choose_angles(throw_mode, angle)
     #     trigger = False
 
-    cs.sendto("{0},{1},{2}".format(command, moveX, moveY).encode(), ('192.168.1.27', 12345))
+    #cs.sendto("{0},{1},{2}".format(command, moveX, moveY).encode(), ('192.168.1.3', 12345))
+    sock.send("{0},{1},{2}".format(command, moveX, moveY))
 
     last_finger_center = finger_center_filtered
     last_joint_center = joint_center_filtered
 
 if __name__ == "__main__":
-    webcam = color_tracker.WebCamera(video_src=1)
+    webcam = color_tracker.WebCamera(video_src=0)
     webcam.start_camera()
 
     kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))

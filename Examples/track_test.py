@@ -24,7 +24,7 @@ if __name__ == '__main__' :
         tracker = cv2.TrackerGOTURN_create()
  
     # Read video
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
 
     # Read first frame.
     ok, frame = cap.read()
@@ -71,6 +71,7 @@ if __name__ == '__main__' :
      
         # Display FPS on frame
         cv2.putText(frame, "FPS : " + str(int(fps)), (100,50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50,170,50), 2);
+        print("FPS : " + str(int(fps)))
  
         # Display result
         cv2.imshow("Tracking", frame)

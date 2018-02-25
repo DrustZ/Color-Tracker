@@ -218,7 +218,7 @@ class ColorTracker(object):
                 self._find_and_track_object_center_point(index=i, contours=cnts,
                                                          min_contour_area=min_contour_areas[i],
                                                          min_point_distance=min_track_point_distance,
-                                                         max_point_distance=math.inf)
+                                                         max_point_distance=float("inf"))
 
             if self._debug:
                 self._draw_debug_things(draw_contour=False)
