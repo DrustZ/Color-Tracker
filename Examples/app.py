@@ -10,7 +10,7 @@ from bluetooth import *
 #cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
 uuid = "fa87c0d0-afac-11de-8a39-0800200c9a66"
-addr = "5C:70:A3:D7:FE:46"
+addr = "20:D3:90:35:18:F7"
 service_matches = find_service( uuid = uuid, address = addr )
 
 first_match = service_matches[0]
@@ -27,6 +27,7 @@ last_finger_center = None
 last_joint_center = None
 finger_disappeared = 0
 trigger = False
+appear_count = 0
 last_time = 0
 angle = 0
 cnt = 0 
@@ -43,17 +44,18 @@ pos1, pos2, pos3, pos4 = (line1-flen1)/2+flen1, (line2-flen2)/2+flen2, (line3-fl
 fix_locate_points = [[20, (h-2.0*pos1/line1)*pch],\
                      [20, (h-h/2*pos2/line2)*pch],\
                      [20, 180],\
-                     [w*pcw-20,180]]
+                     [1080,180]]
 
 print (fix_locate_points)
 
-angles = [np.arctan(2.0/w), np.arctan(h/2/w), np.arctan(h/w), np.arctan(h*2/w)]
+angles = [np.arctan(2.0/w), np.arctan(h/2/w), np.arctan(h/w), np.arctan(h/w)]
 print (angles)
 
 def choose_angles(mode, move_rad):
     moveX = fix_locate_points[2][0]
     moveY = fix_locate_points[2][1]
     if mode == 0:
+        print move_rad
         if move_rad <= angles[0]:
             moveX, moveY = fix_locate_points[0][0], fix_locate_points[0][1]
             print ("pos 1")
@@ -67,9 +69,9 @@ def choose_angles(mode, move_rad):
 
 
 def tracking_callback():
-    global last_finger_center, last_joint_center, finger_disappeared, trigger, last_time, last_movey, last_movex, angle, cnt
+    global last_finger_center, last_joint_center, finger_disappeared, appear_count, trigger, last_time, last_movey, last_movex, angle, cnt
     t = time.time()
-    print(t-last_time)
+    # print(t-last_time)
     if (t - last_time)*1000 < 20:
         return None
     last_time = t
@@ -97,15 +99,19 @@ def tracking_callback():
         last_joint_center = joint_center_filtered
 
     if finger_center is not None:
-        if finger_disappeared > 3 and joint_center is not None:
-            finger_disappeared = 0
-            trigger = True
-            moveX = (finger_center[0] - joint_center[0]) * 10
-            moveY = (finger_center[1] - joint_center[1]) * 10
-            # print (np.sqrt(moveX**2+moveY**2))
+        if finger_disappeared > 5 and joint_center is not None:
+            if appear_count > 3:
+                finger_disappeared = 0
+                appear_count = 0
+                trigger = True
+                moveX = (finger_center[0] - joint_center[0]) * 16.0
+                moveY = (finger_center[1] - joint_center[1]) * 16.0
+            else:
+                appear_count += 1
+                return
         else:
-            moveX = (finger_center_filtered[0] - last_finger_center[0]).sum() * 10
-            moveY = (finger_center_filtered[1] - last_finger_center[1]).sum() * 10
+            moveX = (finger_center_filtered[0] - last_finger_center[0]).sum() * 16.0
+            moveY = (finger_center_filtered[1] - last_finger_center[1]).sum() * 16.0
     elif joint_center is not None:
         finger_disappeared += 1
     else:
@@ -122,6 +128,7 @@ def tracking_callback():
         print ("trigger.")
         if moveX == 0:
             moveX = 1e-10
+        print (moveY, moveX)
         angle = np.arctan(np.fabs(moveY/moveX))
         moveX, moveY = choose_angles(throw_mode, angle)
         trigger = False
@@ -147,9 +154,9 @@ if __name__ == "__main__":
 
     tracker.set_tracking_callback(tracking_callback=tracking_callback)
 
-    tracker.track(hsv_lower_values=[(37, 75, 44), (0, 164, 192)],
-                  hsv_upper_values=[(87, 255, 253), (255, 255, 255)],
-                  min_contour_areas=[150, 50],
+    tracker.track(hsv_lower_values=[(145, 78, 162), (59, 78, 193)],
+                  hsv_upper_values=[(255, 255, 255), (85, 255, 255)],
+                  min_contour_areas=[100, 50],
                   kernels=[kernel1, kernel2],
                   input_image_type="bgr")
 
